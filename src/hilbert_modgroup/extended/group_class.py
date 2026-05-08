@@ -1,5 +1,5 @@
 import logging
-
+from random import choice
 import sage
 from sage.all import Integer
 from sage.arith.misc import divisors
@@ -15,7 +15,6 @@ from sage.rings.integer_ring import ZZ
 from sage.rings.number_field.number_field import QuadraticField
 
 from hilbert_modgroup.upper_half_plane import ComplexPlaneProductElement__class
-
 from .cusp import (
     NFCusp_wrt_lattice_ideal,
     fundamental_unit_generator,
@@ -405,25 +404,11 @@ class ExtendedHilbertModularGroup_class(LinearMatrixGroup_generic):
         """
         gens = []
         tp_units = self.tp_units()
-        lattice_ideal = self.lattice_ideal()
         level_ideal = self.level_ideal()
         number_field = self.number_field()
-        Lreps = list_of_representatives(level_ideal)
-        for d in level_ideal.residues():
-            if d != 0 and d != 1 and number_field.fractional_ideal(d).is_coprime(level_ideal):
-                Lds = [
-                    P * lattice_ideal * level_ideal
-                    for P in Lreps
-                    if (P * lattice_ideal * level_ideal).is_principal()
-                ]
-                C = Lds[0]
-                c = (C).gens_reduced()[0]
-                A1 = c * (lattice_ideal.inverse())
-                A2 = number_field.fractional_ideal(d)
-                r = A1.element_1_mod(A2)
-                b = -r / c
-                a = (1 - r) / d
-                gens.append(self.create_element(a, b, c, d))
+        coprime_residue = [u for u in level_ideal.residues() if u != 0 and level_ideal.is_coprime(u)]
+        for x in coprime_residue:
+            gens.append(self.R(x))
         for x in self.lattice_ideal().inverse().basis():
             gens.append(self.T(x))
         for x in (self.lattice_ideal() * self.level_ideal()).basis():
@@ -433,6 +418,46 @@ class ExtendedHilbertModularGroup_class(LinearMatrixGroup_generic):
             for x in tpunit_gen:
                 gens.append(self.E(x))
         return gens
+
+    @cached_method
+    def R(self, d):
+        """
+        Return the lift of any element in (OK/(level_ideal))^*  in self:
+
+        INPUT:
+
+        - ``d`` -- integer in number field coprime to d (default=1)
+
+        EXAMPLES::
+
+            sage: from hilbert_modgroup.extended.all import ExtendedHilbertModularGroup
+            sage: K1.<a> = QuadraticField(2)
+            sage: level_ideal = K1.fractional_ideal(3)
+            sage: H = ExtendedHilbertModularGroup(K1, level_ideal = level_ideal)
+            sage: d = K1(5)
+            sage: level_ideal.is_coprime(d)
+            True
+            sage: H.R(d)
+            [-1 -2]
+            [ 3  5]
+        """
+        level_ideal = self.level_ideal()
+        lattice_ideal = self.lattice_ideal()
+        number_field = self.number_field()
+        Lreps = list_of_representatives(level_ideal * d)
+        Lds = [
+            P * lattice_ideal * level_ideal
+            for P in Lreps if (P * lattice_ideal * level_ideal).is_principal()
+        ]
+        C = Lds[0]
+        c = (C).gens_reduced()[0]
+        A1 = c * (lattice_ideal.inverse())
+        A2 = number_field.fractional_ideal(d)
+        r = A1.element_1_mod(A2)
+        b = -r / c
+        a = (1 - r) / d
+        return self([a, b, c, d])
+
 
     @cached_method
     def S(self):
@@ -582,6 +607,12 @@ class ExtendedHilbertModularGroup_class(LinearMatrixGroup_generic):
         a = self.lattice_ideal().inverse().random_element(**kwds)
         b = (self.lattice_ideal() * self.level_ideal()).random_element(**kwds)
         K = self.number_field()
+        level_ideal = self.level_ideal()
+        coprime_residue = [u for u in level_ideal.residues() if u != 0 and level_ideal.is_coprime(u)]
+        if coprime_residue == []:
+            d =1
+        else:
+            d = choice(coprime_residue)
         if x is None:
             x = -5
         if y is None:
@@ -600,10 +631,12 @@ class ExtendedHilbertModularGroup_class(LinearMatrixGroup_generic):
         if matrix_type == "Upper":
             return self(self.T(a))
 
-        if matrix_type == "unit":
+        if matrix_type == "Unit":
             return self(self.E(u))
+        if matrix_type == "Lift":
+            return self(self.R(d))
 
-        return self(self.E(u) * self.T(a) * self.L(b))
+        return self(self.R(u) * self.E(u) * self.T(a) * self.L(b))
 
     @cached_method
     def cusps(self):
