@@ -90,7 +90,12 @@ class ExtendedHilbertPullback(SageObject):
         """
         if not isinstance(G, ExtendedHilbertModularGroup_class):
             raise ValueError("Need a Extended Hilbert modular group")
+        ambient_group = ExtendedHilbertModularGroup(G.number_field(),
+                                                    lattice_ideal = G.lattice_ideal(),
+                                                    tp_units = G.tp_units())
+        self._ambient_group = ambient_group
         self._group = G
+
 
     def __eq__(self, other):
         r"""
@@ -162,6 +167,12 @@ class ExtendedHilbertPullback(SageObject):
         """
         return self._group
 
+    def ambient_group(self):
+        """
+        Return the ambient group of ``self``.
+        """
+        return self._ambient_group
+
     def _check_upper_half_plane_element(self, z):
         r"""
         Check if z is an element of type UpperHalfPlaneProductElement__class
@@ -198,12 +209,12 @@ class ExtendedHilbertPullback(SageObject):
         """
         if (
             not isinstance(z, UpperHalfPlaneProductElement__class)
-            or z.degree() != self.group().number_field().degree()
+            or z.degree() != self.ambient_group().number_field().degree()
         ):
             msg = (
                 f"Need an element of type: "
                 f"UpperHalfPlaneProductElement__class of degree "
-                f"{self.group().number_field().degree()}"
+                f"{self.ambient_group().number_field().degree()}"
             )
             raise ValueError(msg)
         return True
@@ -231,8 +242,8 @@ class ExtendedHilbertPullback(SageObject):
             sage: P4.fundamental_units()
             [a, a + 6]
         """
-        K = self.group().number_field()
-        tp_units = self.group().tp_units()
+        K = self.ambient_group().number_field()
+        tp_units = self.ambient_group().tp_units()
         if tp_units:
             return totally_positive_unit_group_generators(K)
         else:
@@ -271,7 +282,7 @@ class ExtendedHilbertPullback(SageObject):
             [ 1.31695789692482]
 
         """
-        n = self.group().number_field().degree()
+        n = self.ambient_group().number_field().degree()
         entries = [
             [x.abs().log() for x in u.complex_embeddings(prec)] for u in self.fundamental_units()
         ]
@@ -349,7 +360,7 @@ class ExtendedHilbertPullback(SageObject):
             1.2227344030925683e-29)
         """
         self._check_upper_half_plane_element(z)
-        normalized_imag = z / z.imag_norm() ** (1 / self.group().number_field().degree())
+        normalized_imag = z / z.imag_norm() ** (1 / self.ambient_group().number_field().degree())
         log_vector = matrix(vector(normalized_imag.imag_log())).transpose()
         B = self.basis_matrix_logarithmic_unit_lattice(prec=z.base_ring().prec())
         coordinate_vector = B.solve_right(log_vector, check=False)
@@ -403,17 +414,17 @@ class ExtendedHilbertPullback(SageObject):
             )
 
         """
-        tp_units = self.group().tp_units()
+        tp_units = self.ambient_group().tp_units()
         units = self.fundamental_units()
         # Only include the units != -1
         # To avoid overflow it is more efficient to apply the map,
         # e.g. compute (z*u**-k)/u**k instead of z*u**-(2k)
         if tp_units:
             floors = [-stable_floor(y) for y in self.Y(z)]
-            reducing_map = prod([self.group().E(u**y) for u, y in zip(units, floors, strict=False)])
+            reducing_map = prod([self.ambient_group().E(u**y) for u, y in zip(units, floors, strict=False)])
         else:
             floors = [-stable_floor(y / 2) for y in self.Y(z)]
-            reducing_map = prod([self.group().E(u**y) for u, y in zip(units, floors, strict=False)])
+            reducing_map = prod([self.ambient_group().E(u**y) for u, y in zip(units, floors, strict=False)])
         reduced_point = z.apply(reducing_map)
         if return_map:
             return reduced_point, reducing_map
@@ -455,7 +466,7 @@ class ExtendedHilbertPullback(SageObject):
             True
 
         """
-        tp_units = self.group().tp_units()
+        tp_units = self.ambient_group().tp_units()
         if tp_units:
             return all(-1 / 2 <= y < 1 / 2 for y in self.Y(z))
         else:
@@ -480,19 +491,19 @@ class ExtendedHilbertPullback(SageObject):
             Fractional ideal (1/2)
         """
         if a is None:
-            ideala = self.group().number_field().ring_of_integers().fractional_ideal(1)
+            ideala = self.ambient_group().number_field().ring_of_integers().fractional_ideal(1)
         elif isinstance(a, NumberFieldIdeal):
             if b:
                 ideala = a / b
             else:
                 ideala = a
-        elif a in self.group().number_field().ring_of_integers() and not b:
-            ideala = self.group().number_field().ring_of_integers().fractional_ideal(a)
+        elif a in self.ambient_group().number_field().ring_of_integers() and not b:
+            ideala = self.ambient_group().number_field().ring_of_integers().fractional_ideal(a)
         elif (
-            a in self.group().number_field().ring_of_integers()
-            and b in self.group().number_field().ring_of_integers()
+            a in self.ambient_group().number_field().ring_of_integers()
+            and b in self.ambient_group().number_field().ring_of_integers()
         ):
-            ideala = self.group().ideal(a, b)
+            ideala = self.ambient_group().ideal(a, b)
         else:
             raise ValueError(f"Could not construct a number field ideal from a={a} and b={b}")
         return ideala
@@ -530,7 +541,7 @@ class ExtendedHilbertPullback(SageObject):
         """
         ideala = self._construct_ideal(a)
         entries = [list(beta.complex_embeddings(prec)) for beta in ideala.integral_basis()]
-        n = self.group().number_field().degree()
+        n = self.ambient_group().number_field().degree()
         return matrix(RealField(prec), n, n, entries).transpose()
 
     # @cached_method
@@ -834,7 +845,7 @@ class ExtendedHilbertPullback(SageObject):
             (z * z.parent()(beta)).real() + (z * z.parent()(beta)).imag()
             for beta in ideala.integral_basis()
         ]
-        n = self.group().base_ring().degree()
+        n = self.ambient_group().base_ring().degree()
         return matrix(RealField(prec), 2 * n, 2 * n, entries)
 
     def _shortest_vectors_ideal_plusz(self, z, a=None, return_scaled_matrix=False):
@@ -1039,7 +1050,7 @@ class ExtendedHilbertPullback(SageObject):
             sage: P1._construct_cusp(0, 1)
             Cusp [0: 1] of Number Field in a with defining polynomial x^2 - 3 with a = 1.732050807568878?
         """
-        lattice_ideal = self.group().lattice_ideal()
+        lattice_ideal = self.ambient_group().lattice_ideal()
         if isinstance(c, NFCusp_wrt_lattice_ideal) and c.number_field() == self.number_field():
             return c
         if isinstance(c, NFCusp_wrt_lattice_ideal) and c.number_field() != self.number_field():
@@ -1067,7 +1078,7 @@ class ExtendedHilbertPullback(SageObject):
             Number Field in a with defining polynomial x^3 - 36*x - 1
 
         """
-        return self.group().number_field()
+        return self.ambient_group().number_field()
 
     def reduce_in_cuspidal_region(self, z, cusp=None, return_map=False):  # needcheking
         r"""
@@ -1157,8 +1168,8 @@ class ExtendedHilbertPullback(SageObject):
         """
         self._check_upper_half_plane_element(z)
         if cusp is None:
-            cusp = self.group().cusps()[0]
-        ideala = ((self.group().lattice_ideal()) ** -1) * (cusp.ideal() ** -2)
+            cusp = self.ambient_group().cusps()[0]
+        ideala = ((self.ambient_group().lattice_ideal()) ** -1) * (cusp.ideal() ** -2)
         # Then reduce with respect to the units, followed by reduction by translation with respect
         # to the ideal (lattice_ideal**-1)*(a**-2)
         if return_map:
@@ -1225,7 +1236,7 @@ class ExtendedHilbertPullback(SageObject):
         closest_cusp = find_closest_cusp(
             self, z, return_multiple=return_multiple, use_lll=True, use_norm_bound=True
         )
-        lattice_ideal = self.group().lattice_ideal()
+        lattice_ideal = self.ambient_group().lattice_ideal()
         if as_cusp and return_multiple:
             return [NFCusp_wrt_lattice_ideal(lattice_ideal, c[0], c[1]) for c in closest_cusp]
         if as_cusp:
@@ -1369,7 +1380,7 @@ class ExtendedHilbertPullback(SageObject):
             1
 
         """
-        return max([x.norm() for x in self.group().ideal_cusp_representatives()])
+        return max([x.norm() for x in self.ambient_group().ideal_cusp_representatives()])
 
     def _matrix_BLambda_row_sum(self, i=None):  # Need to work
         r"""
@@ -1427,7 +1438,7 @@ class ExtendedHilbertPullback(SageObject):
 
         """
         K = self.number_field()
-        lattice_ideal = self.group().lattice_ideal()
+        lattice_ideal = self.ambient_group().lattice_ideal()
         # level_ideal = self.group().level_ideal()
         H = ExtendedHilbertModularGroup(K, lattice_ideal=lattice_ideal, tp_units=False)
         P = ExtendedHilbertPullback(H)
@@ -1552,7 +1563,7 @@ class ExtendedHilbertPullback(SageObject):
             sage: P4.Di(1)
             1.9318516525781364
         """
-        n = self.group().number_field().degree()
+        n = self.ambient_group().number_field().degree()
         return float(self.max_ideal_norm() ** (1 / n) * self._exp_matrix_BLambda_row_sum(i).sqrt())
 
     @cached_method()
@@ -1582,7 +1593,7 @@ class ExtendedHilbertPullback(SageObject):
             sage: P4.D()
             [1.9318516525781362, 1.9318516525781364]
         """
-        n = self.group().number_field().degree()
+        n = self.ambient_group().number_field().degree()
         return [self.Di(i) for i in range(n)]
 
     def _bound_for_closest_cusp(self):
@@ -1612,7 +1623,7 @@ class ExtendedHilbertPullback(SageObject):
             0.0358983848622454
 
         """
-        n = self.group().number_field().degree()
+        n = self.ambient_group().number_field().degree()
         return self.max_ideal_norm() ** (-1) * 2 ** (-n / 2.0) / self._exp_matrix_BLambda_row_sum()
 
     def _Dzi(self, z, i, initial_bd_d=None, use_initial_bd_d=True):
@@ -1668,11 +1679,11 @@ class ExtendedHilbertPullback(SageObject):
             1.93185165257814
 
         """
-        n = self.group().number_field().degree()
+        n = self.ambient_group().number_field().degree()
         if not use_initial_bd_d:
             return self.Di(i) * z.imag_norm() ** (-1 / (2 * n))
         dist_to_infinity_bd = z.imag_norm() ** (-1 / 2)
-        dist_to_zero_bd = ((self.group().lattice_ideal().inverse().norm()) ** -1) * (
+        dist_to_zero_bd = ((self.ambient_group().lattice_ideal().inverse().norm()) ** -1) * (
             z.abs_square_norm() / z.imag_norm()
         ) ** (0.5)  # Need to work
         if initial_bd_d:
@@ -1853,7 +1864,7 @@ class ExtendedHilbertPullback(SageObject):
 
         """
         self._check_upper_half_plane_element(z)
-        n = self.group().number_field().degree()
+        n = self.ambient_group().number_field().degree()
         d = self._Dz(z, initial_bd_d=initial_bd_d, use_initial_bd_d=use_initial_bd_d)
         bounds = []
         B = self.basis_matrix_ideal().inverse()
@@ -1916,10 +1927,10 @@ class ExtendedHilbertPullback(SageObject):
 
         """
         self._check_upper_half_plane_element(z)
-        n = self.group().number_field().degree()
+        n = self.ambient_group().number_field().degree()
         d = self._Dz(z, initial_bd_d=initial_bd_d, use_initial_bd_d=use_initial_bd_d)
         if not isinstance(sigma, list):
-            sigma = self.group().number_field()(sigma)
+            sigma = self.ambient_group().number_field()(sigma)
             sigma = sigma.complex_embeddings()
         bounds = []
         for i in range(n):
@@ -1986,10 +1997,10 @@ class ExtendedHilbertPullback(SageObject):
             [3.904, 3.904]
         """
         self._check_upper_half_plane_element(z)
-        n = self.group().number_field().degree()
+        n = self.ambient_group().number_field().degree()
         d = self._Dz(z, initial_bd_d=initial_bd_d, use_initial_bd_d=use_initial_bd_d)
         if not isinstance(sigma, list):
-            sigma = self.group().number_field()(sigma)
+            sigma = self.ambient_group().number_field()(sigma)
             sigma = sigma.complex_embeddings()
         bounds = []
         factor = 1.01
@@ -2295,7 +2306,7 @@ class ExtendedHilbertPullback(SageObject):
         if as_cusps:
             # Convert to cusps
             cusps = []
-            lattice_ideal = self.group().lattice_ideal()
+            lattice_ideal = self.ambient_group().lattice_ideal()
             for rho, sigma in cusp_candidates:
                 c = NFCusp_wrt_lattice_ideal(lattice_ideal, rho, sigma)
                 if c not in cusps:
@@ -2393,21 +2404,21 @@ class ExtendedHilbertPullback(SageObject):
 
 
         """
-        K = self.number_field()
-        lattice_ideal = self.group().lattice_ideal()
-        level_ideal = K.fractional_ideal(1)
-        tp_units = self.group().tp_units()
-        H = ExtendedHilbertModularGroup(
-            K, lattice_ideal=lattice_ideal, level_ideal=level_ideal, tp_units=tp_units
-        )
-        P = ExtendedHilbertPullback(H)
+        #K = self.number_field()
+        #lattice_ideal = self.group().lattice_ideal()
+        #level_ideal = K.fractional_ideal(1)
+        #tp_units = self.group().tp_units()
+        #H = ExtendedHilbertModularGroup(
+        #    K, lattice_ideal=lattice_ideal, level_ideal=level_ideal, tp_units=tp_units
+        #)
+        #P = ExtendedHilbertPullback(H)
         if z.norm() == 0:
             raise ValueError("Can not reduce point at the boundary of one of the half-planes.")
-        c = P.find_closest_cusp(z, return_multiple=False, as_cusp=True)
-        c_rep, Umu = P.group().cusp_representative(c, return_map=True)
-        A = P._group.cusp_normalizing_map(c_rep)
+        c = self.find_closest_cusp(z, return_multiple=False, as_cusp=True)
+        c_rep, Umu = self.ambient_group().cusp_representative(c, return_map=True)
+        A = self.ambient_group().cusp_normalizing_map(c_rep)
         w = z.apply(A.inverse() * Umu)
-        w, B = P.reduce_in_cuspidal_region(w, c_rep, return_map=True)
+        w, B = self.reduce_in_cuspidal_region(w, c_rep, return_map=True)
         w = w.apply(A)
         M = A * B * A.inverse() * Umu
         Mat = self.level_reduction_matrix(M)
