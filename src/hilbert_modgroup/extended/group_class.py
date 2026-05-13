@@ -1,5 +1,6 @@
 import logging
 from random import choice
+
 import sage
 from sage.all import Integer
 from sage.arith.misc import divisors
@@ -15,6 +16,7 @@ from sage.rings.integer_ring import ZZ
 from sage.rings.number_field.number_field import QuadraticField
 
 from hilbert_modgroup.upper_half_plane import ComplexPlaneProductElement__class
+
 from .cusp import (
     NFCusp_wrt_lattice_ideal,
     fundamental_unit_generator,
@@ -722,7 +724,7 @@ class ExtendedHilbertModularGroup_class(LinearMatrixGroup_generic):
                         A2 = newb * B.inverse()
                         r = A2.element_1_mod(A1)
                         a1 = (r / newb) * g
-                        a2 = -(1 - r) / c * g
+                        #a2 = -(1 - r) / c * g
                         Lcusps.append(NFCusp_wrt_lattice_ideal(lattice_ideal, a1, c, lreps=Lreps))
         cusp = NFCusp_wrt_lattice_ideal(self.lattice_ideal(), 1, 0)
         for c in Lcusps:
