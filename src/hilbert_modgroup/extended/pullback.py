@@ -90,11 +90,8 @@ class ExtendedHilbertPullback(SageObject):
         """
         if not isinstance(G, ExtendedHilbertModularGroup_class):
             raise ValueError("Need a Extended Hilbert modular group")
-        ambient_group = ExtendedHilbertModularGroup(G.number_field(),
-                                                    lattice_ideal = G.lattice_ideal(),
-                                                    tp_units = G.tp_units())
-        self._ambient_group = ambient_group
         self._group = G
+        self._ambient_group = G.ambient_group()
 
 
     def __eq__(self, other):
@@ -170,6 +167,19 @@ class ExtendedHilbertPullback(SageObject):
     def ambient_group(self):
         """
         Return the ambient group of ``self``.
+
+        Examples::
+
+            sage: from hilbert_modgroup.extended.all import ExtendedHilbertModularGroup, ExtendedHilbertPullback
+            sage: K.<a> = QuadraticField(5)
+            sage: lattice_ideal = K.fractional_ideal(2)
+            sage: level_ideal = K.fractional_ideal(3)
+            sage: H = ExtendedHilbertModularGroup(K, lattice_ideal = lattice_ideal, level_ideal = level_ideal)
+            sage: P = ExtendedHilbertPullback(H)
+            sage: P.ambient_group()
+            Hilbert modular group PGL_2^+(...) ... x^2 - 5 with a = 2.236067977499790? ...
+            sage: P.ambient_group().level_ideal()
+            Fractional ideal (1)
         """
         return self._ambient_group
 
@@ -543,110 +553,6 @@ class ExtendedHilbertPullback(SageObject):
         entries = [list(beta.complex_embeddings(prec)) for beta in ideala.integral_basis()]
         n = self.ambient_group().number_field().degree()
         return matrix(RealField(prec), n, n, entries).transpose()
-
-    # @cached_method
-    # def basis_matrix_ideal_on_power_basis(self, a=None):
-    #    r"""
-    #    Return the Basis matrix corresponding to an integer basis of an ideal a
-    #    in terms of the standard power basis.
-
-    #    INPUT:
-
-    #    - ``a`` -- ideal or number field element.
-
-    #    EXAMPLES::
-
-    #        sage: from hilbert_modgroup.extended.all import *
-    #        sage: H1 = ExtendedHilbertModularGroup(5)
-    #        sage: P1 = ExtendedHilbertPullback(H1)
-    #        sage: P1.basis_matrix_ideal_on_power_basis()
-    #        [   1 -1/2]
-    #        [   0  1/2]
-    #        sage: P1.basis_matrix_ideal_on_power_basis(2)
-    #        [ 2 -1]
-    #        [ 0  1]
-    #        sage: H2=ExtendedHilbertModularGroup(10)
-    #        sage: P2 = ExtendedHilbertPullback(H2)
-    #        sage: P2.basis_matrix_ideal_on_power_basis()
-    #        [1 0]
-    #        [0 1]
-    #        sage: a=H2.OK().gen(1)
-    #        sage: P2.basis_matrix_ideal_on_power_basis(a+1)
-    #        [9 1]
-    #        [0 1]
-
-    #    """
-    #    ideala = self._construct_ideal(a)
-    #    entries = [list(beta.vector()) for beta in ideala.integral_basis()]
-    #    n = self.group().number_field().degree()
-    #    return matrix(self.number_field(), n, n, entries).transpose()
-
-    # def coordinates_in_number_field_ideal(self, x, a = None):
-    #    r"""
-    #    Return the coordinates of x with respect to an integral basis of a.
-
-    #    INPUT:
-
-    #    - ``x`` -- element of ideal a
-    #    - ``a`` -- ideal or number field element.
-
-    #    EXAMPLES::
-
-    #        sage: from hilbert_modgroup.extended.all import *
-    #        sage: H1 = ExtendedHilbertModularGroup(5)
-    #        sage: P1 = ExtendedHilbertPullback(H1)
-    #        sage: b1,b2=P1.number_field().fractional_ideal(1).basis()
-    #        sage: P1.coordinates_in_number_field_ideal(b1)
-    #        (1, 0)
-    #        sage: P1.coordinates_in_number_field_ideal(b2)
-    #        (0, 1)
-    #        sage: H2 = ExtendedHilbertModularGroup(10)
-    #        sage: P2 = ExtendedHilbertPullback(H2)
-    #        sage: b1,b2 = P2.number_field().fractional_ideal(1).basis()
-    #        sage: P2.coordinates_in_number_field_ideal(b1)
-    #        (1, 0)
-    #        sage: P2.coordinates_in_number_field_ideal(b2)
-    #        (0, 1)
-
-    #    """
-    #    B = self.basis_matrix_ideal_on_power_basis(a = a)
-    #    return B.inverse() * x.vector()
-
-    # @cached_method
-    # def basis_matrix_ideal__norm(self, a=None, prec=53, row=None):
-    #    r"""
-    #    Return the Basis matrix corresponding to an integer basis of an ideal a.
-
-    #    INPUT:
-
-    #    - ``a`` -- ideal or number field element.
-    #    - ``prec`` -- integer (default=53)
-
-    #    EXAMPLES::
-
-    #        sage: from hilbert_modgroup.extended.all import *
-    #        sage: H1 = ExtendedHilbertModularGroup(5)
-    #        sage: P1 = ExtendedHilbertPullback(H1)
-    #        sage: P1.basis_matrix_ideal__norm() # abs tol 1e-10
-    #        2.61803398874989
-    #        sage: P1.basis_matrix_ideal__norm(2) # abs tol 1e-10
-    #        5.23606797749979
-    #        sage: H2=ExtendedHilbertModularGroup(10)
-    #        sage: P2 = ExtendedHilbertPullback(H2)
-    #        sage: P2.basis_matrix_ideal__norm() # abs tol 1e-10
-    #        4.16227766016838
-    #        sage: a=H2.OK().gen(1)
-    #        sage: P2.basis_matrix_ideal__norm(a+1) # abs tol 1e-10
-    #        13.16227766016838
-
-    #    """
-    #    B = self.basis_matrix_ideal(a, prec=prec)
-    #    if row is None:
-    #        return B.norm(Infinity)
-    #    elif 0 <= row < B.nrows():
-    #        return sum([abs(x) for x in B.row(row)])
-    #    else:
-    #        raise ValueError(f"Can not find row:{row}")
 
     def X(self, z, a=None):
         r"""
@@ -1443,13 +1349,6 @@ class ExtendedHilbertPullback(SageObject):
         H = ExtendedHilbertModularGroup(K, lattice_ideal=lattice_ideal, tp_units=False)
         P = ExtendedHilbertPullback(H)
         B = P.basis_matrix_logarithmic_unit_lattice()
-        # tp_units = self.group().tp_units()
-        # if tp_units:
-        #    if i is not None:
-        #        return 1/2* sum([abs(x) for x in B[i]])
-        #    else:
-        #        return 1/2 * sum([sum([abs(x) for x in row]) for row in B])
-        # else:
         if i is not None:
             return sum([abs(x) for x in B[i]])
         else:
@@ -2404,14 +2303,6 @@ class ExtendedHilbertPullback(SageObject):
 
 
         """
-        #K = self.number_field()
-        #lattice_ideal = self.group().lattice_ideal()
-        #level_ideal = K.fractional_ideal(1)
-        #tp_units = self.group().tp_units()
-        #H = ExtendedHilbertModularGroup(
-        #    K, lattice_ideal=lattice_ideal, level_ideal=level_ideal, tp_units=tp_units
-        #)
-        #P = ExtendedHilbertPullback(H)
         if z.norm() == 0:
             raise ValueError("Can not reduce point at the boundary of one of the half-planes.")
         c = self.find_closest_cusp(z, return_multiple=False, as_cusp=True)

@@ -298,6 +298,27 @@ class ExtendedHilbertModularGroup_class(LinearMatrixGroup_generic):
         """
         return self._OK
 
+    def ambient_group(self):
+        """
+        Return the ambient group associated to self, i.e., with level_ideal = O_K
+
+
+        Examples::
+
+            sage: from hilbert_modgroup.extended.all import ExtendedHilbertModularGroup
+            sage: K.<a> = QuadraticField(5)
+            sage: lattice_ideal = K.fractional_ideal(2)
+            sage: level_ideal = K.fractional_ideal(3)
+            sage: H = ExtendedHilbertModularGroup(K, lattice_ideal = lattice_ideal, level_ideal = level_ideal)
+            sage: H.ambient_group()
+            Hilbert modular group PGL_2^+(...) ... x^2 - 5 with a = 2.236067977499790? ...
+            sage: H.ambient_group().level_ideal()
+            Fractional ideal (1)
+        """
+        return ExtendedHilbertModularGroup(self.number_field(),
+                                           lattice_ideal = self.lattice_ideal(),
+                                           tp_units = self.tp_units())
+
     def __contains__(self, x):
         r"""
         Return whether ``x`` is an element of ``self``.
@@ -385,8 +406,8 @@ class ExtendedHilbertModularGroup_class(LinearMatrixGroup_generic):
             [-a + 1      0]  [-1  0]  [a + 1     0]  [ a -1]  [-a -1]
             [     3 -a - 1], [ 3 -1], [    3 a - 1], [ 3 -a], [ 3  a],
             <BLANKLINE>
-            [-a - 1      0]  [a - 1     0]  [1 1]  [1 a]  [1 0]  [  1   0]
-            [     3 -a + 1], [    3 a + 1], [0 1], [0 1], [3 1], [3*a   1],
+            [-a - 1      0]  [1 0]  [a - 1     0]  [1 1]  [1 a]  [1 0]  [  1   0]
+            [     3 -a + 1], [3 1], [    3 a + 1], [0 1], [0 1], [3 1], [3*a   1],
             <BLANKLINE>
             [2*a + 3       0]
             [      0       1]
@@ -397,8 +418,8 @@ class ExtendedHilbertModularGroup_class(LinearMatrixGroup_generic):
             [-a + 1      0]  [-1  0]  [a + 1     0]  [ a -1]  [-a -1]
             [     3 -a - 1], [ 3 -1], [    3 a - 1], [ 3 -a], [ 3  a],
             <BLANKLINE>
-            [-a - 1      0]  [a - 1     0]  [1 1]  [1 a]  [1 0]  [  1   0]
-            [     3 -a + 1], [    3 a + 1], [0 1], [0 1], [3 1], [3*a   1]
+            [-a - 1      0]  [1 0]  [a - 1     0]  [1 1]  [1 a]  [1 0]  [  1   0]
+            [     3 -a + 1], [3 1], [    3 a + 1], [0 1], [0 1], [3 1], [3*a   1]
             ]
 
         """
@@ -701,7 +722,7 @@ class ExtendedHilbertModularGroup_class(LinearMatrixGroup_generic):
                         A2 = newb * B.inverse()
                         r = A2.element_1_mod(A1)
                         a1 = (r / newb) * g
-                        -(1 - r) / c * g
+                        a2 = -(1 - r) / c * g
                         Lcusps.append(NFCusp_wrt_lattice_ideal(lattice_ideal, a1, c, lreps=Lreps))
         cusp = NFCusp_wrt_lattice_ideal(self.lattice_ideal(), 1, 0)
         for c in Lcusps:
@@ -998,38 +1019,35 @@ class ExtendedHilbertModularGroup_class(LinearMatrixGroup_generic):
         N = self.level_ideal()
         K = self.number_field()
         lattice_ideal = self.lattice_ideal()
-        H = ExtendedHilbertModularGroup(K, lattice_ideal)
+        H = self.ambient_group()
         L = []
         for D in divisors(N):
-            if (D * lattice_ideal).is_principal():
-                Dp = K.fractional_ideal(1)
-                c = (D * lattice_ideal * Dp).gens_reduced()[0]
+            if D == N:
+                L.append(H.create_element(1, 0, 0, 1))
             else:
-                it = K.primes_of_degree_one_iter()
-                Dp = next(it)
-                while not Dp.is_coprime(N) or not (Dp * D * lattice_ideal).is_principal():
+                if (D * lattice_ideal).is_principal():
+                    Dp = K.fractional_ideal(1)
+                    c = (D * lattice_ideal * Dp).gens_reduced()[0]
+                else:
+                    it = K.primes_of_degree_one_iter()
                     Dp = next(it)
-                c = (D * lattice_ideal * Dp).gens_reduced()[0]
-            I = D + N / D
-            for r in (N / D).residues():
-                if I.is_coprime(r):
-                    M = D.prime_to_idealM_part(N / D)
-                    u = (Dp * M).element_1_mod(N / D)
-                    d = u * r + (1 - u)
-                    if d.is_zero():
-                        L.append(H.create_element(1, -1 / c, c, d))
-                    else:
-                        B = K.fractional_ideal(c * lattice_ideal.inverse()).element_1_mod(
-                            K.fractional_ideal(d)
-                        )
-                        b = -B / c
-                        a = (1 - B) / d
-                        L.append(H.create_element(a, b, c, d))
-        for x in L:
-            if x in self:
-                idx = L.index(x)
-                L[idx] = H.create_element(1, 0, 0, 1)
-                break
+                    while not Dp.is_coprime(N) or not (Dp * D * lattice_ideal).is_principal():
+                       Dp = next(it)
+                    c = (D * lattice_ideal * Dp).gens_reduced()[0]
+                I = D + N / D
+                for r in (N / D).residues():
+                    if I.is_coprime(r):
+                       M = D.prime_to_idealM_part(N / D)
+                       u = (Dp * M).element_1_mod(N / D)
+                       d = u * r + (1 - u)
+                       if d.is_zero():
+                           L.append(H.create_element(1, -1 / c, c, d))
+                       else:
+                           B = K.fractional_ideal(c * lattice_ideal.inverse()).element_1_mod(
+                               K.fractional_ideal(d))
+                           b = -B / c
+                           a = (1 - B) / d
+                           L.append(H.create_element(a, b, c, d))
         if not len(L) == psi(N):
             raise ValueError("Condition is not satisfying. Check again")
         return L
